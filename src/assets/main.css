@@ -1,0 +1,14 @@
+@import './base.css';
+
+.row {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-around;
+}
+
+
+.box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
