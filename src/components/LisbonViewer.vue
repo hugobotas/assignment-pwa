@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup>
 import { GChart } from 'vue-google-charts'
 import { ref } from 'vue'
 
@@ -17,6 +17,8 @@ async function fetchData() {
     'https://api.ipma.pt/open-data/observation/meteorology/stations/observations.json'
   )
   const data= await response.json()
+  lisbon.value = [];
+  lisbon_graph.value = [];
   for (const hour in data) {
     lisbon.value = [...lisbon.value, [hour, data[hour]['1200579']]]
     lisbon_graph.value = [...lisbon_graph.value, [hour, data[hour]['1200579'].temperatura]]
