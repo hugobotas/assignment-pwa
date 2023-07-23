@@ -22,7 +22,7 @@ onMounted(async () => {
       try {
         // Register new sync every 24 hours
         await registration.periodicSync.register('update-json', {
-          minInterval: 30 * 60 * 1000, // 1 day
+          minInterval: 24 * 30 * 60 * 1000, // 1 day
         });
         console.log('Periodic background sync registered!');
       } catch (e) {

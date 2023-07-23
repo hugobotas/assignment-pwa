@@ -8,27 +8,36 @@ import {
     staticResourceCache
 } from 'workbox-recipes';
 
+self.addEventListener('periodicsync', (event) => {
+    if (event.tag === 'update-json') {
+        event.waitUntil(fetchAndCacheWeather());
+    }
+});
+
 precacheAndRoute(self.__WB_MANIFEST)
-
-const cacheName = 'json';
-const matchCallback = ({request}) => request.url.match(/api.ipma.pt\/.*json$/)
-const networkTimeoutSeconds = 3;
-
-registerRoute(
-    matchCallback,
-    new NetworkFirst({
-        networkTimeoutSeconds,
-        cacheName,
-        plugins: [
-            new CacheableResponsePlugin({
-                statuses: [0, 200],
-            }),
-        ],
-    })
-);
+cacheJson();
 pageCache();
 staticResourceCache();
 imageCache();
+
+function cacheJson() {
+    const cacheName = 'json';
+    const matchCallback = ({request}) => request.url.match(/api.ipma.pt\/.*json$/)
+    const networkTimeoutSeconds = 3;
+
+    registerRoute(
+        matchCallback,
+        new NetworkFirst({
+            networkTimeoutSeconds,
+            cacheName,
+            plugins: [
+                new CacheableResponsePlugin({
+                    statuses: [0, 200],
+                }),
+            ],
+        })
+    );
+}
 
 const getFormattedTime = (date) => {
     const formatTwoDigits = (number) => `0${number}`.slice(-2);
@@ -49,12 +58,6 @@ const fetchAndCacheWeather = async () => {
     const response = await fetch(url);
     const responseWithTime = await getResponseWithFormattedTime(response);
 
-    const cache = await caches.open('cache-news');
+    const cache = await caches.open('json');
     await cache.put(url, responseWithTime);
 };
-self.addEventListener('periodicsync', (event) => {
-    if (event.tag === 'update-json') {
-        console.log('Fetching updated data in the background!');
-        event.waitUntil(fetchAndCacheWeather());
-    }
-});
