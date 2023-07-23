@@ -9,6 +9,11 @@ export default defineConfig({
     plugins: [
         vue(),
         VitePWA({
+            devOptions: {
+                enabled: true,
+                type: 'module',
+                /* other options */
+            },
             strategies: 'injectManifest',
             srcDir: 'src',
             filename: 'my-sw.js',
