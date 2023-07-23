@@ -1,75 +1,60 @@
 import { precacheAndRoute } from 'workbox-precaching'
+import {registerRoute} from "workbox-routing";
+import {NetworkFirst} from "workbox-strategies";
+import {CacheableResponsePlugin} from "workbox-cacheable-response";
+import {
+    pageCache,
+    imageCache,
+    staticResourceCache
+} from 'workbox-recipes';
 
 precacheAndRoute(self.__WB_MANIFEST)
-// self.addEventListener("fetch", (event) => {
-//     if (event.request.url.includes("api.ipma.pt")) {
-//         // response to API requests, Cache Update Refresh strategy
-//         event.respondWith(caches.match(event.request));
-//         // event.waitUntil(update(event.request).then(refresh));
-//          console.log("Botas: ", caches.match(event.request));
-//     }
-// })
-// function update(request) {
-//     return fetch(request.url).then(
-//         response =>
-//             cache(request, response) // we can put response in cache
-//                 .then(() => response) // resolve promise with the Response object
-//     );
-// }
-// function refresh(response) {
-//     return response
-//         .json() // read and parse JSON response
-//         .then(jsonResponse => {
-//             self.clients.matchAll().then(clients => {
-//                 clients.forEach(client => {
-//                     // report and send new data to client
-//                     client.postMessage(
-//                         JSON.stringify({
-//                             type: response.url,
-//                             data: jsonResponse.data
-//                         })
-//                     );
-//                 });
-//             });
-//             return jsonResponse.data; // resolve promise with new data
-//         });
-// }
-//
-// function cache(request, response) {
-//     if (response.type === "error" || response.type === "opaque") {
-//         return Promise.resolve(); // do not put in cache network errors
-//     }
-//     var clonedResponse = response.clone();
-//     return caches
-//         .open("TESTE")
-//         .then(cache => cache.put(request, clonedResponse));
-// }
-//
-//
-// addEventListener("fetch", function(e) {
-//     e.respondWith((async function() {
-//         const cachedResponse = await caches.match(e.request);
-//         if (cachedResponse) {
-//             return cachedResponse;
-//         }
-//         const networkResponse = await fetch(e.request);
-//
-//         const hosts = [
-//             'https://www.gstatic.com',
-//         ];
-//
-//         if (hosts.some((host) => e.request.url.startsWith(host))) {
-//             // This clone() happens before `return networkResponse`
-//             const clonedResponse = networkResponse.clone();
-//
-//             e.waitUntil((async function() {
-//                 const cache = await caches.open("CACHE_NAME");
-//                 // This will be called after `return networkResponse`
-//                 // so make sure you already have the clone!
-//                 await cache.put(e.request, clonedResponse);
-//             })());
-//         }
-//
-//         return networkResponse;
-//     })());
-// });
+
+const cacheName = 'json';
+const matchCallback = ({request}) => request.url.match(/api.ipma.pt\/.*json$/)
+const networkTimeoutSeconds = 3;
+
+registerRoute(
+    matchCallback,
+    new NetworkFirst({
+        networkTimeoutSeconds,
+        cacheName,
+        plugins: [
+            new CacheableResponsePlugin({
+                statuses: [0, 200],
+            }),
+        ],
+    })
+);
+pageCache();
+staticResourceCache();
+imageCache();
+
+const getFormattedTime = (date) => {
+    const formatTwoDigits = (number) => `0${number}`.slice(-2);
+    const hours = formatTwoDigits(date.getHours());
+    const minutes = formatTwoDigits(date.getMinutes());
+    const seconds = formatTwoDigits(date.getSeconds());
+    return `${hours}:${minutes}:${seconds}`;
+};
+const getResponseWithFormattedTime = async (response) => {
+    const responseBody = await response.json();
+    return new Response(JSON.stringify({
+        ...responseBody,
+        formattedTime: getFormattedTime(new Date()),
+    }));
+};
+const fetchAndCacheWeather = async () => {
+    const url = `https://api.ipma.pt/open-data/observation/meteorology/stations/observations.json`;
+    const response = await fetch(url);
+    const responseWithTime = await getResponseWithFormattedTime(response);
+
+    const cache = await caches.open('cache-news');
+    await cache.put(url, responseWithTime);
+};
+self.addEventListener('periodicsync', (event) => {
+    if (event.tag === 'update-json') {
+        console.log('Fetching updated data in the background!');
+        event.waitUntil(fetchAndCacheWeather());
+    }
+});
