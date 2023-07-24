@@ -1,9 +1,10 @@
-<script setup lang="ts">
+<script setup>
 import { GChart } from 'vue-google-charts'
-import { ref } from 'vue'
+import {ref} from 'vue'
 
 const lisbon = ref([])
 const lisbon_graph = ref([])
+let eventSource;
 const chartOptions = {
   title: '24h Temperature Variation in Lisbon',
   width: 700,
@@ -12,11 +13,11 @@ const chartOptions = {
     title: 'Temperature (ºC)'
   }
 }
-async function fetchData() {
-  const response = await fetch(
-    'https://api.ipma.pt/open-data/observation/meteorology/stations/observations.json'
-  )
-  const data= await response.json()
+
+function parseResponse(response) {
+  const data = JSON.parse(response)
+  lisbon.value = []
+  lisbon_graph.value = []
   for (const hour in data) {
     lisbon.value = [...lisbon.value, [hour, data[hour]['1200579']]]
     lisbon_graph.value = [...lisbon_graph.value, [hour, data[hour]['1200579'].temperatura]]
@@ -25,6 +26,17 @@ async function fetchData() {
   lisbon_graph.value.sort()
   lisbon_graph.value = [['Time', 'Temperature'], ...lisbon_graph.value]
 }
+
+async function fetchData() {
+  await fetch("http://localhost:8080/trigger");
+  eventSource = new EventSource('http://localhost:8080/sse/receive');
+  eventSource.onmessage = function (e) {
+    const notification = JSON.parse(e.data)
+    parseResponse(notification.message)
+    eventSource.close();
+  };
+}
+
 </script>
 <template>
   <div class="box">
